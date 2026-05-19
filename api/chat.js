@@ -60,41 +60,36 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid messages format' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'API key not configured. Add GEMINI_API_KEY to your Vercel environment variables.' });
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'API key not configured. Add GROQ_API_KEY to your Vercel environment variables.' });
 
-    const contents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...messages
+        ],
+        max_tokens: 1500,
+        temperature: 0.7
+      })
+    });
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents,
-          generationConfig: {
-            maxOutputTokens: 1500,
-            temperature: 0.7,
-            topP: 0.9
-          }
-        })
-      }
-    );
-
-    if (!geminiRes.ok) {
-      const errData = await geminiRes.json().catch(() => ({}));
-      const msg = errData.error?.message || `Gemini returned status ${geminiRes.status}`;
+    if (!groqRes.ok) {
+      const errData = await groqRes.json().catch(() => ({}));
+      const msg = errData.error?.message || `Groq returned status ${groqRes.status}`;
       return res.status(502).json({ error: msg });
     }
 
-    const data = await geminiRes.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data = await groqRes.json();
+    const text = data.choices?.[0]?.message?.content;
 
-    if (!text) return res.status(502).json({ error: 'Empty response from Gemini' });
+    if (!text) return res.status(502).json({ error: 'Empty response from Groq' });
 
     return res.status(200).json({ response: text });
 
