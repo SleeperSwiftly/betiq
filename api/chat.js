@@ -142,39 +142,26 @@ async function fetchEsportsRosters(playerNames, query, apiKey) {
 
 // ─── NBA roster lookup via BallDontLie ────────────────
 async function fetchNBARosters(playerNames, apiKey) {
-  if (!playerNames.length || !apiKey) return null;
+  if (!playerNames.length) return null;
   try {
     const results = [];
     for (const name of playerNames.slice(0, 5)) {
       try {
         const res = await fetch(
-          `https://api.balldontlie.io/v1/players?search=${encodeURIComponent(name)}&per_page=3`,
-          { headers: { 'Authorization': apiKey } }
+          `https://site.api.espn.com/apis/common/v3/search?query=${encodeURIComponent(name)}&type=athlete&sport=basketball&league=nba&limit=1`
         );
         if (!res.ok) continue;
         const data = await res.json();
-        if (!data.data?.length) continue;
-        const p = data.data[0];
-        const team = p.team?.full_name || 'Unknown team';
-        const pos = p.position || '';
-        results.push(`${p.first_name} ${p.last_name} → ${team}${pos ? ` | ${pos}` : ''}`);
-
-        // Also grab quick stats
-        const statsRes = await fetch(
-          `https://api.balldontlie.io/v1/season_averages?season=2024&player_ids[]=${p.id}`,
-          { headers: { 'Authorization': apiKey } }
-        );
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          if (statsData.data?.length) {
-            const s = statsData.data[0];
-            results[results.length-1] += ` | ${s.pts} PPG / ${s.reb} RPG / ${s.ast} APG / ${s.min} MIN`;
-          }
-        }
+        const athlete = data.athletes?.[0]?.athlete;
+        if (!athlete) continue;
+        const team = athlete.team?.displayName || 'Unknown team';
+        const pos = athlete.position?.abbreviation || '';
+        const status = athlete.status?.type || 'active';
+        results.push(`${athlete.displayName} → ${team}${pos ? ` | ${pos}` : ''} | ${status}`);
       } catch(e) { continue; }
     }
     if (results.length === 0) return null;
-    return `Current NBA rosters & stats:\n${results.join('\n')}`;
+    return `Current NBA rosters (ESPN):\n${results.join('\n')}`;
   } catch(e) { return null; }
 }
 
