@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BetIQ — Sports Betting AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #070a0d; --surface: #0d1117; --surface2: #111820;
+      --border: #1c2530; --border2: #243040;
+      --green: #00c274; --green-dim: #004d2e;
+      --gold: #f5a623; --red: #e05252; --blue: #4a90d9;
+      --text: #dde4ef; --muted: #5a6a7e; --muted2: #3a4a5a;
+    }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+
+    /* ── Layout ── */
+    #app { display: flex; height: 100vh; }
+
+    /* ── Sidebar ── */
+    #sidebar { width: 260px; min-width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    #sidebar-header { padding: 16px 14px 12px; border-bottom: 1px solid var(--border); }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .logo-icon { width: 30px; height: 30px; border-radius: 8px; background: var(--green-dim); border: 1px solid var(--green); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .logo-text { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+    .logo-text span { color: var(--green); }
+    .new-chat-btn { width: 100%; padding: 7px 12px; background: var(--green); border: none; border-radius: 8px; color: #000; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: opacity .15s; }
+    .new-chat-btn:hover { opacity: .88; }
+    #conv-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .conv-item { padding: 8px 10px; border-radius: 7px; margin-bottom: 2px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background .1s; }
+    .conv-item:hover { background: var(--surface2); }
+    .conv-item.active { background: var(--surface2); border: 1px solid var(--border2); }
+    .conv-title { font-size: 12.5px; color: #aab4c0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .conv-item.active .conv-title { color: var(--text); }
+    .conv-date { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+    .conv-del { background: none; border: none; color: var(--muted2); cursor: pointer; font-size: 16px; padding: 2px 5px; border-radius: 4px; opacity: 0; transition: opacity .15s; }
+    .conv-item:hover .conv-del { opacity: 1; }
+    .conv-empty { padding: 20px 12px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+    /* Quick prompts */
+    #quick-section { border-top: 1px solid var(--border); padding: 10px 10px 6px; }
+    .qs-label { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 7px; }
+    .qp-btn { display: block; width: 100%; text-align: left; padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: #8a9ab0; font-size: 11px; cursor: pointer; margin-bottom: 4px; transition: all .15s; font-family: inherit; }
+    .qp-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+    .summary-btn { display: block; width: 100%; padding: 7px 10px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--gold); font-size: 11.5px; cursor: pointer; margin-top: 8px; font-family: inherit; transition: all .15s; }
+    .summary-btn:hover { background: rgba(245,166,35,.1); border-color: var(--gold); }
+
+    /* ── Tab nav ── */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    #tab-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+    .tab-btn { padding: 11px 20px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 500; border-bottom: 2px solid transparent; transition: all .15s; }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    /* ── Chat tab ── */
+    #tab-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; }
+    .welcome-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 100px; background: var(--green-dim); border: 1px solid var(--green); font-size: 11px; color: var(--green); font-weight: 500; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 18px; }
+    .welcome-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 2s ease-in-out infinite; }
+    .welcome-title { font-size: 26px; font-weight: 300; margin-bottom: 8px; }
+    .welcome-title strong { color: var(--green); font-weight: 600; }
+    .welcome-sub { font-size: 13.5px; color: var(--muted); line-height: 1.7; max-width: 400px; margin-bottom: 24px; }
+    .welcome-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 480px; width: 100%; }
+    .welcome-card { padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; text-align: left; cursor: pointer; transition: all .15s; }
+    .welcome-card:hover { border-color: var(--green); background: var(--green-dim); }
+    .wc-icon { font-size: 17px; margin-bottom: 5px; }
+    .wc-text { font-size: 12px; color: #8a9ab0; line-height: 1.4; }
+    #chat-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #messages-wrap { flex: 1; overflow-y: auto; }
+    #messages { max-width: 700px; margin: 0 auto; padding: 24px 20px; }
+    .msg { display: flex; gap: 10px; margin-bottom: 24px; animation: fadeUp .2s ease; }
+    .msg-avatar { width: 27px; height: 27px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+    .msg.user .msg-avatar { background: var(--surface2); border: 1px solid var(--border2); color: var(--muted); }
+    .msg.bot .msg-avatar { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
+    .msg-inner { flex: 1; min-width: 0; }
+    .msg-name { font-size: 11px; font-weight: 600; margin-bottom: 5px; letter-spacing: .04em; }
+    .msg.user .msg-name { color: var(--muted); }
+    .msg.bot .msg-name { color: var(--green); }
+    .msg-body { font-size: 14px; line-height: 1.75; color: #bdc8d6; }
+    .msg-body p { margin: 0 0 8px; }
+    .msg-body p:last-child { margin-bottom: 0; }
+    .msg-body strong { color: var(--text); font-weight: 600; }
+    .msg-body em { color: #a0b0c0; font-style: italic; }
+    .msg-body h1, .msg-body h2, .msg-body h3 { color: var(--text); font-weight: 600; margin: 14px 0 5px; }
+    .msg-body h1 { font-size: 16px; } .msg-body h2 { font-size: 14.5px; } .msg-body h3 { font-size: 13.5px; color: var(--green); }
+    .msg-body ul, .msg-body ol { padding-left: 18px; margin: 6px 0; }
+    .msg-body li { margin: 3px 0; }
+    .msg-body code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--surface2); border: 1px solid var(--border); padding: 2px 5px; border-radius: 4px; color: var(--gold); }
+    .msg-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-x: auto; margin: 8px 0; }
+    .msg-body pre code { background: none; border: none; padding: 0; font-size: 12.5px; color: #a0c4a0; }
+    .msg-body blockquote { border-left: 3px solid var(--green); padding-left: 10px; color: var(--muted); margin: 8px 0; }
+    .odds { font-family: 'JetBrains Mono', monospace; color: var(--gold); font-size: 12.5px; }
+    .confidence { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 6px 10px; margin-top: 8px; font-size: 12.5px; }
+    .typing-dots { display: flex; gap: 4px; padding-top: 4px; }
+    .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--green); opacity: .3; animation: typingPulse 1.2s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: .2s; }
+    .typing-dots span:nth-child(3) { animation-delay: .4s; }
+    #input-area { border-top: 1px solid var(--border); padding: 14px 20px 16px; background: var(--surface); }
+    #input-wrap { max-width: 700px; margin: 0 auto; }
+    #input-box { display: flex; gap: 9px; align-items: flex-end; background: var(--bg); border: 1px solid var(--border2); border-radius: 12px; padding: 10px 12px; transition: border-color .15s; }
+    #input-box:focus-within { border-color: var(--green); }
+    #msg-input { flex: 1; background: none; border: none; outline: none; resize: none; color: var(--text); font-size: 14px; line-height: 1.5; font-family: 'Inter', sans-serif; max-height: 120px; overflow-y: auto; }
+    #msg-input::placeholder { color: var(--muted2); }
+    #send-btn { width: 32px; height: 32px; border-radius: 7px; border: none; cursor: pointer; flex-shrink: 0; background: var(--green); color: #000; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; transition: all .15s; }
+    #send-btn:disabled { background: var(--surface2); color: var(--muted2); cursor: default; }
+    #input-hint { text-align: center; font-size: 10.5px; color: var(--muted2); margin-top: 7px; }
+
+    /* ── Bet Slip Tab ── */
+    #tab-betslip { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    #betslip-inner { flex: 1; overflow-y: auto; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+    /* Stats bar */
+    #stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .stat-label { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px; }
+    .stat-value { font-size: 20px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.gold { color: var(--gold); }
+
+    /* Add bet form */
+    #add-bet-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+    .form-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-grid-2 { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .form-field label { display: block; font-size: 10.5px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 5px; }
+    .form-field input, .form-field select { width: 100%; padding: 7px 10px; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s; }
+    .form-field input:focus, .form-field select:focus { border-color: var(--green); }
+    .form-field select option { background: var(--surface); }
+    .add-btn { padding: 8px 18px; background: var(--green); border: none; border-radius: 8px; color: #000; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+    .add-btn:hover { opacity: .88; }
+
+    /* Bet list */
+    #bet-list-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .bet-list-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .bet-list-title { font-size: 13px; font-weight: 600; }
+    .filter-btns { display: flex; gap: 6px; }
+    .filter-btn { padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border); background: none; color: var(--muted); font-size: 11.5px; cursor: pointer; font-family: inherit; transition: all .15s; }
+    .filter-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+    #bets-table { width: 100%; border-collapse: collapse; }
+    #bets-table th { padding: 9px 14px; text-align: left; font-size: 10.5px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    #bets-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border); color: #bdc8d6; }
+    #bets-table tr:last-child td { border-bottom: none; }
+    #bets-table tr:hover td { background: var(--surface2); }
+    .result-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .result-badge.won { background: rgba(0,194,116,.15); color: var(--green); }
+    .result-badge.lost { background: rgba(224,82,82,.15); color: var(--red); }
+    .result-badge.pending { background: rgba(245,166,35,.15); color: var(--gold); }
+    .del-bet { background: none; border: none; color: var(--muted2); cursor: pointer; font-size: 15px; padding: 2px 5px; border-radius: 3px; transition: color .15s; }
+    .del-bet:hover { color: var(--red); }
+    .empty-bets { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes blink { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+    @keyframes typingPulse { 0%, 100% { opacity: .25; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+
+    @media (max-width: 680px) { #sidebar { display: none; } }
+    @media (max-width: 800px) { #stats-bar { grid-template-columns: repeat(3, 1fr); } .form-grid { grid-template-columns: 1fr 1fr; } .form-grid-2 { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">🎯</div>
+        <div class="logo-text">Bet<span>IQ</span></div>
+      </div>
+      <button class="new-chat-btn" onclick="newChat()">
+        <span style="font-size:17px;line-height:1">+</span> New conversation
+      </button>
+    </div>
+    <div id="conv-list"></div>
+    <div id="quick-section">
+      <div class="qs-label">Quick templates</div>
+      <button class="qp-btn" onclick="quickPrompt('Analyze the MLB total for the Cubs game today. Check the wind at Wrigley and starting pitchers.')">⚾ MLB wind + pitcher analysis</button>
+      <button class="qp-btn" onclick="quickPrompt('Give me the best NBA player props to target tonight based on recent form and matchups.')">🏀 Best NBA props tonight</button>
+      <button class="qp-btn" onclick="quickPrompt('Analyze the upcoming Valorant matches today. Which team has the best map pool advantage?')">🎮 Valorant match analysis</button>
+      <button class="qp-btn" onclick="quickPrompt('What CS2 matches are coming up and which team has the edge based on recent results?')">🖥️ CS2 upcoming matches</button>
+      <button class="qp-btn" onclick="quickPrompt('Walk me through how to calculate expected value. Give me a real example with the math.')">📊 Explain EV with math</button>
+      <button class="qp-btn" onclick="quickPrompt('I have a $500 bankroll. How many units should I bet per game and what is my max bet?')">💰 Bankroll sizing advice</button>
+      <button class="summary-btn" onclick="quickPrompt('Summarize our entire betting conversation today. What were the best bets we discussed, what data did we use, and what should I remember going forward?')">📋 Summarize today\'s session</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('chat')">💬 AI Chat</button>
+      <button class="tab-btn" onclick="switchTab('betslip')">📊 Bet Tracker</button>
+    </div>
+
+    <!-- Chat Tab -->
+    <div id="tab-chat">
+      <div id="welcome">
+        <div class="welcome-badge"><div class="welcome-dot"></div>Live Data · Groq AI · Free</div>
+        <h1 class="welcome-title">Your <strong>sports betting</strong> edge</h1>
+        <p class="welcome-sub">Real-time odds, MLB pitcher stats, esports data, NBA player stats, weather, and injury news — all pulled automatically before every answer.</p>
+        <div class="welcome-cards">
+          <div class="welcome-card" onclick="quickPrompt('Analyze today\'s MLB totals. Pull up the starting pitchers and wind conditions at each park.')">
+            <div class="wc-icon">⚾</div><div class="wc-text">MLB totals with live pitcher stats & weather</div>
+          </div>
+          <div class="welcome-card" onclick="quickPrompt('Show me tonight\'s NBA games and the best player props to target based on recent form.')">
+            <div class="wc-icon">🏀</div><div class="wc-text">NBA props with real player stats</div>
+          </div>
+          <div class="welcome-card" onclick="quickPrompt('What Valorant matches are coming up today and which teams have the edge?')">
+            <div class="wc-icon">🎮</div><div class="wc-text">Live esports matchups & analysis</div>
+          </div>
+          <div class="welcome-card" onclick="quickPrompt('Explain expected value in sports betting and walk me through a real calculation example.')">
+            <div class="wc-icon">📊</div><div class="wc-text">EV calculations & sharp strategy</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="chat-view" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+        <div id="messages-wrap"><div id="messages"></div></div>
+      </div>
+
+      <div id="input-area">
+        <div id="input-wrap">
+          <div id="input-box">
+            <textarea id="msg-input" placeholder="Ask BetIQ anything — odds, props, esports, MLB totals, EV calculations…" rows="1"
+              oninput="autoResize(this)"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"></textarea>
+            <button id="send-btn" onclick="send()" disabled>↑</button>
+          </div>
+          <div id="input-hint">Enter to send · Shift+Enter for new line · Live data pulled automatically</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bet Tracker Tab -->
+    <div id="tab-betslip">
+      <div id="betslip-inner">
+        <div id="stats-bar">
+          <div class="stat-card"><div class="stat-label">Total Bets</div><div class="stat-value" id="stat-total">0</div></div>
+          <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value gold" id="stat-winrate">—</div></div>
+          <div class="stat-card"><div class="stat-label">Profit / Loss</div><div class="stat-value" id="stat-pnl">$0</div></div>
+          <div class="stat-card"><div class="stat-label">ROI</div><div class="stat-value" id="stat-roi">—</div></div>
+          <div class="stat-card"><div class="stat-label">Units W/L</div><div class="stat-value" id="stat-units">0 / 0</div></div>
+        </div>
+
+        <div id="add-bet-section">
+          <div class="form-title">➕ Log a bet</div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Sport</label>
+              <select id="f-sport">
+                <option>Valorant</option><option>CS2</option><option>LoL</option><option>Dota 2</option>
+                <option>NBA</option><option>MLB</option><option>NFL</option><option>NHL</option>
+                <option>Soccer</option><option>MMA</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Bet Type</label>
+              <select id="f-type">
+                <option>Moneyline</option><option>Spread</option><option>Total (Over)</option>
+                <option>Total (Under)</option><option>Map Winner</option><option>Total Maps</option>
+                <option>Player Prop</option><option>Team Prop</option><option>Parlay</option>
+                <option>Futures</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Result</label>
+              <select id="f-result">
+                <option value="pending">Pending</option>
+                <option value="won">Won ✅</option>
+                <option value="lost">Lost ❌</option>
+                <option value="push">Push</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-field">
+              <label>Event / Teams</label>
+              <input id="f-event" type="text" placeholder="e.g. Fokus vs Reborn">
+            </div>
+            <div class="form-field">
+              <label>Odds (American)</label>
+              <input id="f-odds" type="text" placeholder="e.g. -110 or +150">
+            </div>
+            <div class="form-field">
+              <label>Stake ($)</label>
+              <input id="f-stake" type="number" placeholder="25" min="0" step="0.01">
+            </div>
+            <div class="form-field" style="display:flex;align-items:flex-end;">
+              <button class="add-btn" onclick="addBet()" style="width:100%">Add Bet</button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Notes (optional)</label>
+            <input id="f-notes" type="text" placeholder="e.g. BetIQ confidence 8/10, wind blowing out at Wrigley">
+          </div>
+        </div>
+
+        <div id="bet-list-section">
+          <div class="bet-list-header">
+            <div class="bet-list-title">Bet History</div>
+            <div class="filter-btns">
+              <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+              <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
+              <button class="filter-btn" onclick="setFilter('won',this)">Won</button>
+              <button class="filter-btn" onclick="setFilter('lost',this)">Lost</button>
+            </div>
+          </div>
+          <div id="bet-list-wrap">
+            <table id="bets-table">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Sport</th><th>Event</th><th>Type</th>
+                  <th>Odds</th><th>Stake</th><th>P&L</th><th>Result</th><th>Notes</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="bets-tbody"></tbody>
+            </table>
+            <div id="bets-empty" class="empty-bets" style="display:none">No bets logged yet. Add your first bet above!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────
+let conversations = [];
+let currentId = null;
+let isLoading = false;
+let bets = [];
+let betFilter = 'all';
+
+// ── Storage ────────────────────────────────────────
+function saveConvs() { try { localStorage.setItem('betiq_convs', JSON.stringify(conversations)); } catch(e){} }
+function saveBets() { try { localStorage.setItem('betiq_bets', JSON.stringify(bets)); } catch(e){} }
+function load() {
+  try {
+    const c = localStorage.getItem('betiq_convs');
+    const b = localStorage.getItem('betiq_bets');
+    if (c) conversations = JSON.parse(c);
+    if (b) bets = JSON.parse(b);
+    if (conversations.length > 0) { currentId = conversations[0].id; showChatView(); }
+    renderSidebar(); renderMessages(); renderBets();
+  } catch(e) {}
+}
+
+// ── Tab switching ──────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='chat')||(i===1&&tab==='betslip')));
+  document.getElementById('tab-chat').style.display = tab === 'chat' ? 'flex' : 'none';
+  document.getElementById('tab-betslip').style.display = tab === 'betslip' ? 'flex' : 'none';
+  if (tab === 'betslip') renderBets();
+}
+
+// ── Chat ───────────────────────────────────────────
+function newChat() {
+  const id = Date.now().toString();
+  conversations.unshift({ id, title: 'New conversation', messages: [], createdAt: Date.now() });
+  currentId = id;
+  saveConvs(); renderSidebar(); showChatView(); renderMessages();
+  setTimeout(() => document.getElementById('msg-input').focus(), 80);
+}
+function deleteConv(id, e) {
+  e.stopPropagation();
+  conversations = conversations.filter(c => c.id !== id);
+  if (currentId === id) { currentId = conversations[0]?.id || null; if (!currentId) showWelcome(); else { showChatView(); renderMessages(); } }
+  saveConvs(); renderSidebar();
+}
+function switchTo(id) { currentId = id; showChatView(); renderMessages(); renderSidebar(); }
+function currentConv() { return conversations.find(c => c.id === currentId); }
+function showChatView() {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('chat-view').style.display = 'flex';
+}
+function showWelcome() {
+  document.getElementById('welcome').style.display = 'flex';
+  document.getElementById('chat-view').style.display = 'none';
+}
+function fmtDate(ts) { return new Date(ts).toLocaleDateString([],{month:'short',day:'numeric'}); }
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  document.getElementById('send-btn').disabled = !el.value.trim() || isLoading;
+}
+function scrollBottom() { setTimeout(() => { const w = document.getElementById('messages-wrap'); if(w) w.scrollTop = w.scrollHeight; }, 60); }
+
+function renderSidebar() {
+  const list = document.getElementById('conv-list');
+  if (conversations.length === 0) { list.innerHTML = '<div class="conv-empty">Your conversations appear here</div>'; return; }
+  list.innerHTML = conversations.map(c => `
+    <div class="conv-item${c.id===currentId?' active':''}" onclick="switchTo('${c.id}')">
+      <div style="flex:1;overflow:hidden">
+        <div class="conv-title">${esc(c.title)}</div>
+        <div class="conv-date">${fmtDate(c.createdAt)}</div>
+      </div>
+      <button class="conv-del" onclick="deleteConv('${c.id}',event)">×</button>
+    </div>`).join('');
+}
+
+function renderMessages() {
+  const conv = currentConv();
+  const container = document.getElementById('messages');
+  if (!conv) return;
+  if (conv.messages.length === 0) { container.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">Ask BetIQ anything to get started</div>'; return; }
+  container.innerHTML = conv.messages.map(m => `
+    <div class="msg ${m.role==='user'?'user':'bot'}">
+      <div class="msg-avatar">${m.role==='user'?'U':'🎯'}</div>
+      <div class="msg-inner">
+        <div class="msg-name">${m.role==='user'?'You':'BetIQ'}</div>
+        <div class="msg-body">${md(m.content)}</div>
+      </div>
+    </div>`).join('');
+  scrollBottom();
+}
+
+function addTypingIndicator() {
+  const el = document.createElement('div');
+  el.id = 'typing'; el.className = 'msg bot';
+  el.innerHTML = `<div class="msg-avatar">🎯</div><div class="msg-inner"><div class="msg-name">BetIQ</div><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  document.getElementById('messages').appendChild(el);
+  scrollBottom();
+}
+function removeTypingIndicator() { document.getElementById('typing')?.remove(); }
+
+async function send() {
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if (!text || isLoading) return;
+  inp.value = ''; inp.style.height = 'auto';
+  document.getElementById('send-btn').disabled = true;
+
+  if (!currentId) newChat();
+  const conv = currentConv();
+  conv.messages.push({ role: 'user', content: text });
+  if (conv.messages.length === 1) conv.title = text.slice(0, 42) + (text.length > 42 ? '…' : '');
+
+  showChatView(); renderMessages(); renderSidebar(); addTypingIndicator(); isLoading = true;
+
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: conv.messages })
+    });
+    const data = await r.json();
+    removeTypingIndicator();
+    if (data.error) throw new Error(data.error);
+    conv.messages.push({ role: 'assistant', content: data.response });
+    saveConvs();
+  } catch(err) {
+    removeTypingIndicator();
+    conv.messages.push({ role: 'assistant', content: `⚠️ Error: ${err.message}` });
+  }
+  isLoading = false;
+  renderMessages(); renderSidebar();
+  inp.focus();
+}
+
+function quickPrompt(text) {
+  if (!currentId) newChat();
+  document.getElementById('msg-input').value = text;
+  autoResize(document.getElementById('msg-input'));
+  send();
+}
+
+// ── Bet Tracker ────────────────────────────────────
+function calcPnL(bet) {
+  if (bet.result === 'push') return 0;
+  if (bet.result !== 'won' && bet.result !== 'lost') return null;
+  const stake = parseFloat(bet.stake) || 0;
+  const odds = parseInt(bet.odds);
+  if (isNaN(odds)) return bet.result === 'won' ? stake : -stake;
+  let profit = 0;
+  if (odds > 0) profit = stake * (odds / 100);
+  else profit = stake * (100 / Math.abs(odds));
+  return bet.result === 'won' ? profit : -stake;
+}
+
+function addBet() {
+  const event = document.getElementById('f-event').value.trim();
+  const odds = document.getElementById('f-odds').value.trim();
+  const stake = document.getElementById('f-stake').value.trim();
+  if (!event) { alert('Please enter the event/teams'); return; }
+
+  const bet = {
+    id: Date.now().toString(),
+    date: new Date().toLocaleDateString([],{month:'short',day:'numeric'}),
+    sport: document.getElementById('f-sport').value,
+    event, type: document.getElementById('f-type').value,
+    odds, stake: parseFloat(stake) || 0,
+    result: document.getElementById('f-result').value,
+    notes: document.getElementById('f-notes').value.trim()
+  };
+
+  bets.unshift(bet);
+  saveBets(); renderBets();
+  document.getElementById('f-event').value = '';
+  document.getElementById('f-odds').value = '';
+  document.getElementById('f-stake').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-result').value = 'pending';
+}
+
+function deleteBet(id) {
+  bets = bets.filter(b => b.id !== id);
+  saveBets(); renderBets();
+}
+
+function setFilter(f, btn) {
+  betFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBets();
+}
+
+function renderBets() {
+  const filtered = betFilter === 'all' ? bets : bets.filter(b => b.result === betFilter);
+  const tbody = document.getElementById('bets-tbody');
+  const empty = document.getElementById('bets-empty');
+  const table = document.getElementById('bets-table');
+
+  // Stats
+  const settled = bets.filter(b => b.result === 'won' || b.result === 'lost');
+  const wins = bets.filter(b => b.result === 'won').length;
+  const losses = bets.filter(b => b.result === 'lost').length;
+  const totalStake = settled.reduce((s, b) => s + (parseFloat(b.stake)||0), 0);
+  const totalPnL = bets.reduce((s, b) => { const p = calcPnL(b); return s + (p||0); }, 0);
+  const roi = totalStake > 0 ? ((totalPnL / totalStake) * 100).toFixed(1) : null;
+  const winRate = settled.length > 0 ? ((wins/settled.length)*100).toFixed(0)+'%' : '—';
+
+  document.getElementById('stat-total').textContent = bets.length;
+  document.getElementById('stat-winrate').textContent = winRate;
+  const pnlEl = document.getElementById('stat-pnl');
+  pnlEl.textContent = (totalPnL >= 0 ? '+' : '') + '$' + totalPnL.toFixed(2);
+  pnlEl.className = 'stat-value ' + (totalPnL > 0 ? 'green' : totalPnL < 0 ? 'red' : '');
+  document.getElementById('stat-roi').textContent = roi ? roi + '%' : '—';
+  document.getElementById('stat-units').textContent = `${wins} / ${losses}`;
+
+  if (filtered.length === 0) {
+    table.style.display = 'none'; empty.style.display = 'block';
+    empty.textContent = betFilter === 'all' ? 'No bets logged yet. Add your first bet above!' : `No ${betFilter} bets.`;
+    return;
+  }
+  table.style.display = 'table'; empty.style.display = 'none';
+
+  tbody.innerHTML = filtered.map(b => {
+    const pnl = calcPnL(b);
+    const pnlStr = pnl === null ? '—' : (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+    const pnlColor = pnl === null ? '' : pnl > 0 ? 'color:var(--green)' : pnl < 0 ? 'color:var(--red)' : '';
+    return `<tr>
+      <td>${b.date}</td>
+      <td>${b.sport}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.event)}</td>
+      <td>${b.type}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--gold)">${b.odds||'—'}</td>
+      <td>$${(b.stake||0).toFixed(2)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;${pnlColor}">${pnlStr}</td>
+      <td><span class="result-badge ${b.result}">${b.result}</span></td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px">${esc(b.notes||'')}</td>
+      <td><button class="del-bet" onclick="deleteBet('${b.id}')">×</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Markdown ───────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function md(raw) {
+  let s = esc(raw);
+  s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, (_,c) => `<pre><code>${c.trim()}</code></pre>`);
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  s = s.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  s = s.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');
+  s = s.replace(/(^- .+$(\n^- .+$)*)/gm, match => `<ul>${match.replace(/^- (.+)$/gm,'<li>$1</li>')}</ul>`);
+  s = s.replace(/(^\d+\. .+$(\n^\d+\. .+$)*)/gm, match => `<ol>${match.replace(/^\d+\. (.+)$/gm,'<li>$1</li>')}</ol>`);
+  s = s.replace(/([+-]\d+(?:\.\d+)?)/g, '<span class="odds">$1</span>');
+  s = s.split(/\n{2,}/).map(p => {
+    p = p.trim(); if (!p) return '';
+    if (/^<(h[123]|ul|ol|pre|blockquote|hr)/.test(p)) return p;
+    return `<p>${p.replace(/\n/g,'<br>')}</p>`;
+  }).join('');
+  return s;
+}
+
+// ── Init ───────────────────────────────────────────
+load();
+document.getElementById('msg-input').addEventListener('input', function() {
+  document.getElementById('send-btn').disabled = !this.value.trim() || isLoading;
+});
+document.getElementById('tab-chat').style.display = 'flex';
+document.getElementById('tab-betslip').style.display = 'none';
+</script>
+</body>
+</html>
