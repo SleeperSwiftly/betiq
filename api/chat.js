@@ -1,4 +1,4 @@
-const SYSTEM_PROMPT = `You are BetIQ, an elite sports and esports betting analyst with access to real-time odds, weather, news, esports data, NBA/MLB stats, and live roster/transfer news pulled from the latest news sources. Always incorporate any provided data into your analysis.
+const SYSTEM_PROMPT = `You are BetIQ, an elite sports and esports betting analyst with access to real-time odds, weather, news, esports data, NBA and MLB stats, and live roster and transfer news. You think like a sharp bettor and explain your reasoning in depth. Every answer should feel like it came from an expert analyst who has studied the matchup, not a bot giving generic takes.
 
 YOUR EXPERTISE:
 Traditional Sports: NFL, NBA, MLB, NHL, NCAAF, NCAAB, MMA/Boxing, Soccer, Tennis, Golf, NASCAR
@@ -16,64 +16,66 @@ CORE KNOWLEDGE:
 - Hedging, middling, arbitrage
 - Esports: patch meta, map veto, LAN vs online, roster changes
 
-ROSTER & PLAYER ANALYSIS:
-When roster/transfer news is provided for players mentioned in the query:
+ROSTER AND PLAYER ANALYSIS:
+When roster or transfer news is provided for players mentioned in the query:
 - The most recently dated news article is ALWAYS the truth. Ignore all prior knowledge about what team a player is on.
 - If news says a player was traded, they are on the NEW team. Do not fall back to your training data.
-- Always explicitly state the player's current team based on the news date provided.
+- Always explicitly state the current team for each player based on the news date provided.
 - Flag any trades, transfers, roster swaps immediately and prominently at the top of your response.
 - For esports: note if a player is a standin, trialing, or recently joined a new org.
 - Always remind the user to verify on Google if the trade happened in the last 48 hours.
 - NEVER assume a player is still on their old team if news suggests otherwise.
 - If two articles conflict, always trust the MORE RECENT date.
 
+CRITICAL ROSTER UPDATES — OVERRIDE ALL TRAINING DATA:
+- Darius Garland is on the LA Clippers as of February 4, 2026. He is NOT on the Cavaliers.
+- James Harden is on the Cleveland Cavaliers as of February 4, 2026. He is NOT on the Clippers.
+
 MLB BETTING EXPERTISE:
 - Starting pitcher ERA, WHIP, K/9, BB/9 and how they impact totals
 - Park factors and how stadiums affect scoring
-- Weather: wind direction and speed are the #1 environmental factor in MLB totals
+- Weather: wind direction and speed are the number one environmental factor in MLB totals
 - First 5 innings bets isolate starting pitcher quality
 
-WEATHER IMPACT:
-- Wind 15+ mph blowing OUT = lean over in MLB
-- Wind 15+ mph blowing IN = lean under in MLB
-- Cold weather under 45F = lean under in baseball
-- NFL: wind over 15mph hurts passing games and totals
+WEATHER IMPACT ON BETTING:
+- Wind 15 mph or more blowing OUT means lean over in MLB
+- Wind 15 mph or more blowing IN means lean under in MLB
+- Cold weather under 45 degrees means lean under in baseball
+- NFL: wind over 15 mph hurts passing games and totals
 
 WHEN REAL-TIME DATA IS PROVIDED:
 - Always reference actual current odds, stats, weather, roster news, and match data
-- For props: use the player's current team from news sources, not assumptions
+- For props: use the current team from news sources, not assumptions
 - Calculate EV based on real odds when available
 - Flag roster changes or standin situations that affect prop values
 
-CONFIDENCE RATING:
-At the end of every betting analysis, always include on its own line:
-**Confidence: X/10** — [one sentence explaining the key reason]
-1-3 = avoid, 4-5 = marginal, 6-7 = decent, 8-9 = strong, 10 = maximum conviction
-
-HOW YOU RESPOND:
-You are not a simple pick generator. You think like a sharp bettor and explain your reasoning in depth. Every answer should feel like it came from an expert analyst who has studied the matchup, not a bot giving generic takes.
-
 DEPTH OF ANALYSIS REQUIRED:
-- For esports props: discuss the player's role (entry fragger, IGL, support, AWPer etc), their typical kill output in that role, whether the map pool or opponent style inflates or deflates kills, recent form, and whether the line is set correctly
-- For NBA props: discuss recent game logs, matchup vs opposing defender, pace of game, minutes trend, home/away splits, and whether the line has moved
-- For MLB totals: discuss both pitchers ERA/WHIP/K rate, bullpen quality, park factor, weather, and lineup strength vs pitcher handedness
+- For esports props: discuss the player role such as entry fragger, IGL, support, or AWPer, their typical kill output in that role, whether the map pool or opponent style inflates or deflates kills, recent form, and whether the line is set correctly
+- For NBA props: discuss recent game logs, matchup vs opposing defender, pace of game, minutes trend, home and away splits, and whether the line has moved
+- For MLB totals: discuss both pitchers ERA and WHIP and strikeout rate, bullpen quality, park factor, weather, and lineup strength vs pitcher handedness
 - For parlays: calculate the true combined probability and compare to the parlay payout to show whether it has positive or negative EV
-- Always show your actual reasoning chain — what factors point toward over, what factors point toward under, then give your conclusion
-- When data is provided (live odds, stats, weather, roster news) always reference it specifically — quote the actual numbers, don't speak in generalities
+- Always show your actual reasoning chain covering what factors point toward over, what factors point toward under, then give your conclusion
+- When data is provided such as live odds, stats, weather, or roster news, always reference it specifically and quote the actual numbers
 - If you do not have enough information to be confident, say so clearly and explain what information would change your view
-- Never say things like team composition might affect kills without explaining HOW and WHY
-- Compare the prop line to what you'd expect based on the data — is the line sharp or is there value?
+- Never give vague takes without explaining exactly how and why
+- Compare the prop line to what you would expect based on the data and tell the user if the line looks sharp or if there is value
 
 RESPONSE FORMAT FOR PROP PICKS:
 When analyzing multiple props, structure each pick like this:
-1. State your pick (over/under) and the line
-2. Give 2-3 specific reasons backed by data or logic
+1. State your pick which is over or under and the line
+2. Give 2 to 3 specific reasons backed by data or logic
 3. Flag any risks or uncertainties
 4. State your confidence rating with a specific reason
 
 RESPONSE LENGTH:
-Short questions get concise answers. Complex prop analysis with multiple players should be detailed — do not rush it. Quality over brevity when stakes are involved.
+Short questions get concise answers. Complex prop analysis with multiple players should be detailed. Quality over brevity when stakes are involved.
 
+CONFIDENCE RATING:
+At the end of every individual pick, include: Confidence: X/10 and one sentence explaining the key reason.
+1 to 3 means avoid, 4 to 5 means marginal, 6 to 7 means decent, 8 to 9 means strong, 10 means maximum conviction.
+
+RESPONSIBLE GAMBLING:
+If a user seems distressed or betting money they cannot afford: 1-800-522-4700 or ncpgambling.org.`;
 
 // ─── MLB Stadium Coordinates ─────────────────────────
 const MLB_STADIUMS = {
@@ -115,60 +117,52 @@ function extractPlayerNames(query) {
   let m;
   while ((m = propPattern.exec(query)) !== null) {
     const name = m[1].toLowerCase();
-    const skip = ['today','tonight','game','match','map','over','under','total','spread','line','pick','bet','give','want','tell','for','the','and','but','with','this','that','from','maps','kills','points','rounds','goals'];
+    const skip = ['today','tonight','game','match','map','over','under','total','spread','line','pick','bet','give','want','tell','for','the','and','but','with','this','that','from','maps','kills','points','rounds','goals','now','will','they','them'];
     if (!skip.includes(name) && name.length > 2) matches.push(m[1]);
   }
   return [...new Set(matches)].slice(0, 12);
 }
 
-// ─── News-based roster lookup (works for ALL sports) ──
+// ─── News-based roster lookup ─────────────────────────
 async function fetchRosterNews(playerNames, query, newsApiKey) {
   if (!playerNames.length || !newsApiKey) return null;
   try {
     const q = query.toLowerCase();
-
-    // Detect sport for smarter search terms
     const isEsports = ['valorant','cs2','lol','dota','overwatch','counter-strike','league of legends','rocket league','cod'].some(t => q.includes(t));
     const isNBA = ['nba','basketball'].some(t => q.includes(t));
     const isNFL = ['nfl','football'].some(t => q.includes(t));
     const isNHL = ['nhl','hockey'].some(t => q.includes(t));
     const isMLB = ['mlb','baseball'].some(t => q.includes(t));
-    const isSoccer = ['soccer','football','epl','premier league','mls','champions league','la liga'].some(t => q.includes(t));
+    const isSoccer = ['soccer','epl','premier league','mls','champions league','la liga'].some(t => q.includes(t));
 
-    // Build sport-specific search suffix
-    let sportSuffix = 'trade transfer team roster';
-    if (isEsports) sportSuffix = 'roster transfer signed joined team esports 2025';
-    else if (isNBA) sportSuffix = 'trade signed team NBA 2025 2026';
-    else if (isNFL) sportSuffix = 'trade signed team NFL 2025 2026';
-    else if (isNHL) sportSuffix = 'trade signed team NHL 2025 2026';
-    else if (isMLB) sportSuffix = 'trade signed team MLB 2025 2026';
-    else if (isSoccer) sportSuffix = 'transfer signed club team 2025 2026';
+    const year = new Date().getFullYear();
+    const prevYear = year - 1;
+
+    let sportSuffix = `trade transfer team roster ${year}`;
+    if (isEsports) sportSuffix = `roster transfer signed joined team esports ${year} ${prevYear}`;
+    else if (isNBA) sportSuffix = `trade signed team NBA ${year} ${prevYear}`;
+    else if (isNFL) sportSuffix = `trade signed team NFL ${year} ${prevYear}`;
+    else if (isNHL) sportSuffix = `trade signed team NHL ${year} ${prevYear}`;
+    else if (isMLB) sportSuffix = `trade signed team MLB ${year} ${prevYear}`;
+    else if (isSoccer) sportSuffix = `transfer signed club team ${year} ${prevYear}`;
 
     const results = [];
-
-    // Search news for each player
     for (const name of playerNames.slice(0, 6)) {
       try {
-        const searchQuery = `${name} ${sportSuffix}`;
         const res = await fetch(
-          `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&sortBy=publishedAt&pageSize=3&apiKey=${newsApiKey}`
+          `https://newsapi.org/v2/everything?q=${encodeURIComponent(name + ' ' + sportSuffix)}&sortBy=publishedAt&pageSize=3&apiKey=${newsApiKey}`
         );
         if (!res.ok) continue;
         const data = await res.json();
         if (!data.articles?.length) continue;
-
-        // Take the most recent article
         const article = data.articles[0];
         const date = new Date(article.publishedAt).toLocaleDateString();
-        const title = article.title;
-
-        results.push(`${name}: "${title}" (${date})`);
+        results.push(`${name}: "${article.title}" (${date})`);
       } catch(e) { continue; }
     }
 
     if (!results.length) return null;
-
-    return `Latest roster/transfer news for mentioned players:\n${results.join('\n')}\n\n⚠️ Always verify very recent moves on Google before betting.`;
+    return `Latest roster and transfer news for mentioned players:\n${results.join('\n')}\n\nAlways verify very recent moves on Google before betting.`;
   } catch(e) { return null; }
 }
 
@@ -181,8 +175,7 @@ async function fetchWeather(query, apiKey) {
       if (q.includes(team)) { stadium = { ...data }; break; }
     }
     if (!stadium) return null;
-    if (stadium.dome) return `${stadium.name}: Indoor/retractable roof — weather not a factor`;
-
+    if (stadium.dome) return `${stadium.name}: Indoor or retractable roof, weather not a factor`;
     const res = await fetch(
       `https://api.openweathermap.org/data/2.5/weather?lat=${stadium.lat}&lon=${stadium.lon}&appid=${apiKey}&units=imperial`
     );
@@ -198,10 +191,10 @@ async function fetchWeather(query, apiKey) {
     let impact = '';
     if (windSpeed >= 15) {
       const out = ['S','SSW','SW','WSW','W','WNW','NW','NNW'].includes(windDir);
-      impact = out ? ' ⚠️ WIND BLOWING OUT — lean OVER' : ' ⚠️ WIND BLOWING IN — lean UNDER';
-    } else if (windSpeed >= 10) impact = ' — moderate wind';
-    if (temp < 45) impact += ' | 🥶 Cold — lean UNDER';
-    return `${stadium.name}: ${temp}°F | Wind: ${windSpeed}mph ${windDir}${impact} | ${conditions} | Humidity: ${humidity}%`;
+      impact = out ? ' WIND BLOWING OUT lean OVER' : ' WIND BLOWING IN lean UNDER';
+    } else if (windSpeed >= 10) impact = ' moderate wind';
+    if (temp < 45) impact += ' Cold weather lean UNDER';
+    return `${stadium.name}: ${temp}F | Wind: ${windSpeed}mph ${windDir}${impact} | ${conditions} | Humidity: ${humidity}%`;
   } catch(e) { return null; }
 }
 
@@ -247,7 +240,7 @@ async function fetchOdds(query, apiKey) {
   } catch(e) { return null; }
 }
 
-// ─── General News + Injury feed ──────────────────────
+// ─── News and Injury feed ────────────────────────────
 async function fetchNews(query, apiKey) {
   try {
     const res = await fetch(
@@ -260,7 +253,7 @@ async function fetchNews(query, apiKey) {
   } catch(e) { return null; }
 }
 
-// ─── PandaScore (Esports matches) ────────────────────
+// ─── PandaScore Esports ───────────────────────────────
 async function fetchEsportsMatches(query, apiKey) {
   try {
     const q = query.toLowerCase();
@@ -299,18 +292,18 @@ async function fetchEsportsMatches(query, apiKey) {
       if (results?.length) recentResults = '\nRecent results:\n'+results.slice(0,5).map(m=>{
         const winner = m.winner?.name||'TBD';
         const teams = m.opponents?.map(o=>o.opponent?.name).join(' vs ')||'TBD';
-        return `${teams} → Winner: ${winner}`;
+        return `${teams} > Winner: ${winner}`;
       }).join('\n');
     }
     return `Upcoming ${videogame} matches:\n${matchData}${recentResults}`;
   } catch(e) { return null; }
 }
 
-// ─── BallDontLie (NBA stats) ─────────────────────────
+// ─── BallDontLie NBA stats ────────────────────────────
 async function fetchNBAStats(query, apiKey) {
   try {
     const q = query.toLowerCase();
-    const nbaTerms = ['nba','basketball','lakers','celtics','warriors','nets','bulls','heat','bucks','suns','nuggets','mavs','clippers','76ers','knicks','raptors','hawks','spurs','rockets','grizzlies','pelicans','thunder','blazers','jazz','timberwolves','kings','cavaliers','cavs','pistons','pacers','hornets','magic','wizards','orioles'];
+    const nbaTerms = ['nba','basketball','lakers','celtics','warriors','nets','bulls','heat','bucks','suns','nuggets','mavs','clippers','76ers','knicks','raptors','hawks','spurs','rockets','grizzlies','pelicans','thunder','blazers','jazz','timberwolves','kings','cavaliers','cavs','pistons','pacers','hornets','magic','wizards'];
     if (!nbaTerms.some(t=>q.includes(t))) return null;
     const words = q.split(' ').filter(w=>w.length>3).slice(0,4);
     let playerStats = '';
@@ -342,7 +335,7 @@ async function fetchNBAStats(query, apiKey) {
       } catch(e) { continue; }
     }
     if (!playerStats) return null;
-    return `NBA Player Stats (stats only — check roster news above for current team):${playerStats}`;
+    return `NBA Player Stats:${playerStats}`;
   } catch(e) { return null; }
 }
 
@@ -361,7 +354,7 @@ async function fetchMLB(query) {
     const words = q.split(' ').filter(w=>w.length>3);
     let relevant = games.filter(g=>words.some(w=>g.teams?.away?.team?.name?.toLowerCase().includes(w)||g.teams?.home?.team?.name?.toLowerCase().includes(w)));
     if (!relevant.length) relevant = games.slice(0,3);
-    return "Today's MLB Games:\n"+relevant.map(g=>{
+    return "Today MLB Games:\n"+relevant.map(g=>{
       const away = g.teams?.away?.team?.name||'TBD';
       const home = g.teams?.home?.team?.name||'TBD';
       const ap = g.teams?.away?.probablePitcher;
@@ -398,11 +391,8 @@ export default async function handler(req, res) {
     if (!groqKey) return res.status(500).json({error:'GROQ_API_KEY not configured.'});
 
     const lastUserMsg = [...messages].reverse().find(m=>m.role==='user')?.content||'';
-
-    // Extract player names automatically
     const playerNames = extractPlayerNames(lastUserMsg);
 
-    // Fetch all data in parallel
     const [oddsData, newsData, esportsData, nbaData, mlbData, weatherData, rosterNewsData] = await Promise.all([
       oddsKey ? fetchOdds(lastUserMsg, oddsKey) : null,
       newsKey ? fetchNews(lastUserMsg, newsKey) : null,
@@ -410,19 +400,17 @@ export default async function handler(req, res) {
       bdlKey ? fetchNBAStats(lastUserMsg, bdlKey) : null,
       fetchMLB(lastUserMsg),
       weatherKey ? fetchWeather(lastUserMsg, weatherKey) : null,
-      // News-based roster lookup for all sports — fires whenever player names detected
       (newsKey && playerNames.length) ? fetchRosterNews(playerNames, lastUserMsg, newsKey) : null
     ]);
 
-    // Build context — roster news goes first so AI sees it before anything else
     let contextBlock = '';
-    if (rosterNewsData) contextBlock += `\n\n=== LATEST ROSTER & TRANSFER NEWS (from live news) ===\n${rosterNewsData}`;
+    if (rosterNewsData) contextBlock += `\n\n=== LATEST ROSTER AND TRANSFER NEWS ===\n${rosterNewsData}`;
     if (weatherData) contextBlock += `\n\n=== LIVE WEATHER ===\n${weatherData}`;
     if (oddsData) contextBlock += `\n\n=== LIVE ODDS ===\n${oddsData}`;
     if (esportsData) contextBlock += `\n\n=== LIVE ESPORTS MATCHES ===\n${esportsData}`;
     if (nbaData) contextBlock += `\n\n=== NBA PLAYER STATS ===\n${nbaData}`;
     if (mlbData) contextBlock += `\n\n=== MLB TODAY ===\n${mlbData}`;
-    if (newsData) contextBlock += `\n\n=== LATEST INJURY & NEWS ===\n${newsData}`;
+    if (newsData) contextBlock += `\n\n=== LATEST INJURY AND NEWS ===\n${newsData}`;
 
     const enrichedMessages = messages.map((m,i) => {
       if (i===messages.length-1 && m.role==='user' && contextBlock)
@@ -436,7 +424,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model:'meta-llama/llama-4-scout-17b-16e-instruct',
         messages:[{role:'system',content:SYSTEM_PROMPT},...enrichedMessages],
-        max_tokens:1500,temperature:0.7
+        max_tokens:2000,
+        temperature:0.7
       })
     });
 
@@ -452,13 +441,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       response: text,
       sources:{
-        rosterNews: !!rosterNewsData,
-        weather: !!weatherData,
-        liveOdds: !!oddsData,
-        esports: !!esportsData,
-        nba: !!nbaData,
-        mlb: !!mlbData,
-        news: !!newsData
+        rosterNews:!!rosterNewsData,weather:!!weatherData,liveOdds:!!oddsData,
+        esports:!!esportsData,nba:!!nbaData,mlb:!!mlbData,news:!!newsData
       }
     });
 
