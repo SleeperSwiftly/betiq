@@ -129,53 +129,31 @@ function extractPlayerNames(query) {
 async function fetchWebSearch(query, apiKey) {
   if (!apiKey) return null;
   try {
-    const q = query.toLowerCase();
-
-    // Build smart search queries based on context
-    const searches = [];
-
-    // Always search for the main query
-    searches.push(query.slice(0, 200));
-
-    // If props mentioned, search for recent match results
-    const isEsports = ['valorant','cs2','lol','dota','overwatch','counter-strike','league of legends'].some(t => q.includes(t));
-    const isNBA = ['nba','basketball'].some(t => q.includes(t));
-    const isMLB = ['mlb','baseball'].some(t => q.includes(t));
-    const isNFL = ['nfl','football'].some(t => q.includes(t));
-
-    if (isEsports) searches.push(`${query.slice(0,100)} esports match results roster 2026`);
-    if (isNBA) searches.push(`${query.slice(0,100)} NBA stats injury report 2026`);
-    if (isMLB) searches.push(`${query.slice(0,100)} MLB pitcher stats lineup 2026`);
-    if (isNFL) searches.push(`${query.slice(0,100)} NFL injury report roster 2026`);
-
-    // Run up to 2 searches in parallel
-    const searchPromises = searches.slice(0, 2).map(searchQuery =>
-      fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(searchQuery)}&count=5&freshness=pm`, {
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip',
-          'X-Subscription-Token': apiKey
-        }
-      }).then(r => r.ok ? r.json() : null).catch(() => null)
-    );
-
-    const searchResults = await Promise.all(searchPromises);
-
-    const allResults = [];
-    for (const result of searchResults) {
-      if (!result?.web?.results) continue;
-      for (const item of result.web.results.slice(0, 4)) {
-        if (item.title && item.description) {
-          allResults.push(`- ${item.title}: ${item.description} (${item.url})`);
+    const res = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ q: query.slice(0, 200), num: 6 })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = [];
+    if (data.organic?.length) {
+      for (const item of data.organic.slice(0, 6)) {
+        if (item.title && item.snippet) {
+          results.push(`- ${item.title}: ${item.snippet}`);
         }
       }
     }
-
-    if (!allResults.length) return null;
-
-    // Deduplicate
-    const unique = [...new Set(allResults)].slice(0, 8);
-    return `Web search results:\n${unique.join('\n')}`;
+    if (data.topStories?.length) {
+      for (const item of data.topStories.slice(0, 3)) {
+        results.push(`- [NEWS] ${item.title} (${item.date||'recent'})`);
+      }
+    }
+    if (!results.length) return null;
+    return `Web search results for context:\n${results.join('\n')}`;
   } catch(e) { return null; }
 }
 
@@ -443,7 +421,7 @@ export default async function handler(req, res) {
     const pandaKey = process.env.PANDASCORE_API_KEY;
     const bdlKey = process.env.BALLDONTLIE_API_KEY;
     const weatherKey = process.env.WEATHER_API_KEY;
-    const braveKey = process.env.BRAVE_API_KEY;
+    const braveKey = process.env.SERPER_API_KEY;
 
     if (!groqKey) return res.status(500).json({error:'GROQ_API_KEY not configured.'});
 
