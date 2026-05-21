@@ -187,9 +187,7 @@ async function fetchWebSearch(query, apiKey, hasImage) {
     }
     if (!allResults.length) return null;
     const unique = [...new Set(allResults)].slice(0, 10);
-    return `Web search results:
-${unique.join('
-')}`;
+    return 'Web search results:\n' + unique.join('\n');
   } catch(e) { return null; }
 }
 
