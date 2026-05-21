@@ -162,7 +162,7 @@ async function fetchWebSearch(query, apiKey, hasImage) {
       if (isNFL) searches.push(query.slice(0, 100) + ' NFL injury report roster 2026');
     }
 
-    const searchPromises = searches.slice(0, 3).map(searchQuery =>
+    const searchPromises = searches.slice(0, 2).map(searchQuery =>
       fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
@@ -175,18 +175,18 @@ async function fetchWebSearch(query, apiKey, hasImage) {
     for (const result of searchResults) {
       if (!result) continue;
       if (result.organic?.length) {
-        for (const item of result.organic.slice(0, 4)) {
+        for (const item of result.organic.slice(0, 2)) {
           if (item.title && item.snippet) allResults.push(`- ${item.title}: ${item.snippet}`);
         }
       }
       if (result.topStories?.length) {
-        for (const item of result.topStories.slice(0, 3)) {
+        for (const item of result.topStories.slice(0, 2)) {
           allResults.push(`- [NEWS] ${item.title} (${item.date||'recent'})`);
         }
       }
     }
     if (!allResults.length) return null;
-    const unique = [...new Set(allResults)].slice(0, 10);
+    const unique = [...new Set(allResults)].slice(0, 5);
     return 'Web search results:\n' + unique.join('\n');
   } catch(e) { return null; }
 }
@@ -231,7 +231,7 @@ async function fetchEsportsStats(query, serperKey) {
     searches.push({ q: query.slice(0, 120) + ' player kill average recent matches 2026', site: 'general' });
 
     const results = [];
-    const searchPromises = searches.slice(0, 4).map(s =>
+    const searchPromises = searches.slice(0, 3).map(s =>
       fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
@@ -271,7 +271,7 @@ async function fetchEsportsStats(query, serperKey) {
     }
 
     if (!results.length) return null;
-    const unique = [...new Set(results)].slice(0, 12);
+    const unique = [...new Set(results)].slice(0, 5);
     return 'Esports data from VLR/HLTV/game-tournaments: ' + unique.join(' | ');
   } catch(e) { return null; }
 }
@@ -300,10 +300,10 @@ async function fetchRosterNews(playerNames, query, newsApiKey) {
     else if (isSoccer) sportSuffix = `transfer signed club team ${year} ${prevYear}`;
 
     const results = [];
-    for (const name of playerNames.slice(0, 5)) {
+    for (const name of playerNames.slice(0, 3)) {
       try {
         const res = await fetch(
-          `https://newsapi.org/v2/everything?q=${encodeURIComponent(name + ' ' + sportSuffix)}&sortBy=publishedAt&pageSize=2&apiKey=${newsApiKey}`
+          `https://newsapi.org/v2/everything?q=${encodeURIComponent(name + ' ' + sportSuffix)}&sortBy=publishedAt&pageSize=1&apiKey=${newsApiKey}`
         );
         if (!res.ok) continue;
         const data = await res.json();
@@ -378,7 +378,7 @@ async function fetchOdds(query, apiKey) {
     const matched = data.filter(g => words.some(w => g.home_team.toLowerCase().includes(w)||g.away_team.toLowerCase().includes(w)));
     if (matched.length > 0) games = matched.slice(0,3);
     return games.map(game => {
-      const oddsStr = game.bookmakers?.slice(0,4).map(book => {
+      const oddsStr = game.bookmakers?.slice(0,3).map(book => {
         const h2h = book.markets?.find(m => m.key==='h2h');
         const spread = book.markets?.find(m => m.key==='spreads');
         const total = book.markets?.find(m => m.key==='totals');
@@ -397,7 +397,7 @@ async function fetchOdds(query, apiKey) {
 async function fetchNews(query, apiKey) {
   try {
     const res = await fetch(
-      `https://newsapi.org/v2/everything?q=${encodeURIComponent(query+' injury OUT questionable lineup')}&sortBy=publishedAt&pageSize=4&apiKey=${apiKey}`
+      `https://newsapi.org/v2/everything?q=${encodeURIComponent(query+' injury OUT questionable lineup')}&sortBy=publishedAt&pageSize=3&apiKey=${apiKey}`
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -423,8 +423,8 @@ async function fetchEsportsMatches(query, apiKey) {
       if (q.includes(keyword)) { videogame = game; break; }
     }
     const [matchRes, resultsRes] = await Promise.all([
-      fetch(`https://api.pandascore.co/matches/upcoming?filter[videogame]=${videogame}&page[size]=5&sort=begin_at`,{headers:{'Authorization':`Bearer ${apiKey}`}}),
-      fetch(`https://api.pandascore.co/matches/past?filter[videogame]=${videogame}&page[size]=5&sort=-begin_at`,{headers:{'Authorization':`Bearer ${apiKey}`}})
+      fetch(`https://api.pandascore.co/matches/upcoming?filter[videogame]=${videogame}&page[size]=3&sort=begin_at`,{headers:{'Authorization':`Bearer ${apiKey}`}}),
+      fetch(`https://api.pandascore.co/matches/past?filter[videogame]=${videogame}&page[size]=3&sort=-begin_at`,{headers:{'Authorization':`Bearer ${apiKey}`}})
     ]);
     if (!matchRes.ok) return null;
     const matches = await matchRes.json();
@@ -458,7 +458,7 @@ async function fetchNBAStats(query, apiKey) {
     const q = query.toLowerCase();
     const nbaTerms = ['nba','basketball','lakers','celtics','warriors','nets','bulls','heat','bucks','suns','nuggets','mavs','clippers','76ers','knicks','raptors','hawks','spurs','rockets','grizzlies','pelicans','thunder','blazers','jazz','timberwolves','kings','cavaliers','cavs','pistons','pacers','hornets','magic','wizards'];
     if (!nbaTerms.some(t=>q.includes(t))) return null;
-    const words = q.split(' ').filter(w=>w.length>3).slice(0,4);
+    const words = q.split(' ').filter(w=>w.length>3).slice(0,2);
     let playerStats = '';
     for (const word of words) {
       try {
@@ -506,7 +506,7 @@ async function fetchMLB(query) {
     if (!games.length) return null;
     const words = q.split(' ').filter(w=>w.length>3);
     let relevant = games.filter(g=>words.some(w=>g.teams?.away?.team?.name?.toLowerCase().includes(w)||g.teams?.home?.team?.name?.toLowerCase().includes(w)));
-    if (!relevant.length) relevant = games.slice(0,3);
+    if (!relevant.length) relevant = games.slice(0,2);
     return "Today MLB Games:\n"+relevant.map(g=>{
       const away = g.teams?.away?.team?.name||'TBD';
       const home = g.teams?.home?.team?.name||'TBD';
@@ -608,7 +608,7 @@ export default async function handler(req, res) {
             return m;
           })
         ],
-        max_tokens:2000,
+        max_tokens:1200,
         temperature:0.7
       })
     });
