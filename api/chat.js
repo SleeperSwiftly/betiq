@@ -462,6 +462,11 @@ export default async function handler(req, res) {
     if (!groqKey) return res.status(500).json({error:'GROQ_API_KEY not configured.'});
 
     const { image } = req.body; // optional image { base64, mimeType }
+    
+    // Validate image size - base64 should be under 4MB
+    if (image && image.base64 && image.base64.length > 5000000) {
+      return res.status(400).json({ error: 'Image is too large. Please use a smaller screenshot.' });
+    }
     const lastUserMsg = [...messages].reverse().find(m=>m.role==='user')?.content||'';
     const playerNames = extractPlayerNames(lastUserMsg);
 
