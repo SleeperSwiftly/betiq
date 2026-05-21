@@ -31,13 +31,14 @@ CRITICAL ROSTER UPDATES — OVERRIDE ALL TRAINING DATA:
 - James Harden is on the Cleveland Cavaliers as of February 4, 2026. He is NOT on the Clippers.
 
 WEB SEARCH USAGE:
-When web search results are provided, always use them as your primary source of truth for:
-- Current player rosters and recent trades or transfers
-- Recent match results and team form
-- Breaking injury news
-- Current odds and line movement
-- Any event or fact that may have changed recently
-Always cite what you found in the search when it influences your analysis.
+When web search results are provided, always use them as your PRIMARY source of truth.
+When analyzing props from a screenshot, you MUST search for and report on:
+- Each player recent kill averages and performance over last 5 to 10 matches
+- Head to head history between the two teams
+- Current team form and win or loss streak
+- Any recent roster changes or standin players
+- Tournament context and stage pressure
+Never say you lack data if web search results are provided. Use what is found and explicitly reference it in your picks. If a specific stat is not found, say what you searched for and what you found instead.
 
 MLB BETTING EXPERTISE:
 - Starting pitcher ERA, WHIP, K/9, BB/9 and how they impact totals
@@ -126,34 +127,69 @@ function extractPlayerNames(query) {
 }
 
 // ─── Brave Web Search ─────────────────────────────────
-async function fetchWebSearch(query, apiKey) {
+async function fetchWebSearch(query, apiKey, hasImage) {
   if (!apiKey) return null;
   try {
-    const res = await fetch('https://google.serper.dev/search', {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ q: query.slice(0, 200), num: 6 })
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results = [];
-    if (data.organic?.length) {
-      for (const item of data.organic.slice(0, 6)) {
-        if (item.title && item.snippet) {
-          results.push(`- ${item.title}: ${item.snippet}`);
+    const searches = [];
+    const q = query.toLowerCase();
+    const isEsports = ['valorant','cs2','lol','dota','overwatch','counter-strike','league of legends','wild rift'].some(t => q.includes(t));
+    const isNBA = ['nba','basketball'].some(t => q.includes(t));
+    const isMLB = ['mlb','baseball'].some(t => q.includes(t));
+    const isNFL = ['nfl','football'].some(t => q.includes(t));
+
+    if (hasImage) {
+      if (isEsports || (!isNBA && !isMLB && !isNFL)) {
+        searches.push(query.slice(0, 150) + ' player stats recent performance kills 2026');
+        searches.push(query.slice(0, 150) + ' h2h history match results 2026');
+        searches.push(query.slice(0, 150) + ' recent form last 5 matches 2026');
+      }
+      if (isNBA) {
+        searches.push(query.slice(0, 150) + ' player stats recent games props 2026');
+        searches.push(query.slice(0, 150) + ' injury report lineup tonight 2026');
+      }
+      if (isMLB) {
+        searches.push(query.slice(0, 150) + ' pitcher stats ERA WHIP lineup today 2026');
+      }
+      if (!searches.length) {
+        searches.push(query.slice(0, 150) + ' player stats recent performance 2026');
+        searches.push(query.slice(0, 150) + ' h2h history match results 2026');
+      }
+    } else {
+      searches.push(query.slice(0, 200));
+      if (isEsports) searches.push(query.slice(0, 100) + ' recent match results h2h stats 2026');
+      if (isNBA) searches.push(query.slice(0, 100) + ' NBA stats injury report 2026');
+      if (isMLB) searches.push(query.slice(0, 100) + ' MLB pitcher stats lineup 2026');
+      if (isNFL) searches.push(query.slice(0, 100) + ' NFL injury report roster 2026');
+    }
+
+    const searchPromises = searches.slice(0, 3).map(searchQuery =>
+      fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: searchQuery, num: 5 })
+      }).then(r => r.ok ? r.json() : null).catch(() => null)
+    );
+
+    const searchResults = await Promise.all(searchPromises);
+    const allResults = [];
+    for (const result of searchResults) {
+      if (!result) continue;
+      if (result.organic?.length) {
+        for (const item of result.organic.slice(0, 4)) {
+          if (item.title && item.snippet) allResults.push(`- ${item.title}: ${item.snippet}`);
+        }
+      }
+      if (result.topStories?.length) {
+        for (const item of result.topStories.slice(0, 3)) {
+          allResults.push(`- [NEWS] ${item.title} (${item.date||'recent'})`);
         }
       }
     }
-    if (data.topStories?.length) {
-      for (const item of data.topStories.slice(0, 3)) {
-        results.push(`- [NEWS] ${item.title} (${item.date||'recent'})`);
-      }
-    }
-    if (!results.length) return null;
-    return `Web search results for context:\n${results.join('\n')}`;
+    if (!allResults.length) return null;
+    const unique = [...new Set(allResults)].slice(0, 10);
+    return `Web search results:
+${unique.join('
+')}`;
   } catch(e) { return null; }
 }
 
@@ -438,7 +474,7 @@ export default async function handler(req, res) {
       fetchMLB(lastUserMsg),
       weatherKey ? fetchWeather(lastUserMsg, weatherKey) : null,
       (newsKey && playerNames.length) ? fetchRosterNews(playerNames, lastUserMsg, newsKey) : null,
-      braveKey ? fetchWebSearch(lastUserMsg, braveKey) : null
+      braveKey ? fetchWebSearch(lastUserMsg, braveKey, !!req.body.image) : null
     ]);
 
     // Build context block — web search and rosters first
