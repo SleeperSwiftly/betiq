@@ -425,6 +425,7 @@ export default async function handler(req, res) {
 
     if (!groqKey) return res.status(500).json({error:'GROQ_API_KEY not configured.'});
 
+    const { image } = req.body; // optional image { base64, mimeType }
     const lastUserMsg = [...messages].reverse().find(m=>m.role==='user')?.content||'';
     const playerNames = extractPlayerNames(lastUserMsg);
 
@@ -461,8 +462,26 @@ export default async function handler(req, res) {
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${groqKey}`},
       body: JSON.stringify({
-        model:'llama-3.3-70b-versatile',
-        messages:[{role:'system',content:SYSTEM_PROMPT},...enrichedMessages],
+        model:'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages:[
+          {role:'system',content:SYSTEM_PROMPT},
+          ...enrichedMessages.map((m,i) => {
+            // Attach image to last user message if provided
+            if (image && i === enrichedMessages.length - 1 && m.role === 'user') {
+              return {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image_url',
+                    image_url: { url: `data:${image.mimeType};base64,${image.base64}` }
+                  },
+                  { type: 'text', text: m.content }
+                ]
+              };
+            }
+            return m;
+          })
+        ],
         max_tokens:2000,
         temperature:0.7
       })
