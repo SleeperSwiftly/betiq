@@ -514,7 +514,7 @@ export default async function handler(req, res) {
                 content: [
                   {
                     type: 'image_url',
-                    image_url: { url: `data:${image.mimeType};base64,${image.base64}` }
+                    image_url: { url: 'data:' + image.mimeType + ';base64,' + image.base64 }
                   },
                   { type: 'text', text: m.content }
                 ]
