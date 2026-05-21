@@ -191,6 +191,91 @@ async function fetchWebSearch(query, apiKey, hasImage) {
   } catch(e) { return null; }
 }
 
+// ─── Esports Data Scraper (VLR, HLTV, game-tournaments) ─
+async function fetchEsportsStats(query, serperKey) {
+  if (!serperKey) return null;
+  try {
+    const q = query.toLowerCase();
+    
+    const isValorant = q.includes('valorant') || q.includes('vlr');
+    const isCS2 = q.includes('cs2') || q.includes('csgo') || q.includes('counter-strike') || q.includes('hltv');
+    const isLoL = q.includes('league of legends') || q.includes(' lol ') || q.includes('lck') || q.includes('lec') || q.includes('lcs') || q.includes('lpl');
+    const isWildRift = q.includes('wild rift') || q.includes('wildrift');
+
+    if (!isValorant && !isCS2 && !isLoL && !isWildRift) return null;
+
+    // Extract team/player names from query
+    // Build targeted site searches
+    const searches = [];
+
+    if (isValorant) {
+      searches.push({ q: query.slice(0, 120) + ' site:vlr.gg', site: 'VLR.gg' });
+      searches.push({ q: query.slice(0, 120) + ' valorant match stats h2h vlr.gg', site: 'VLR.gg' });
+      searches.push({ q: query.slice(0, 120) + ' valorant recent results game-tournaments.com', site: 'game-tournaments' });
+    }
+    if (isCS2) {
+      searches.push({ q: query.slice(0, 120) + ' site:hltv.org', site: 'HLTV' });
+      searches.push({ q: query.slice(0, 120) + ' cs2 stats h2h hltv.org match history', site: 'HLTV' });
+      searches.push({ q: query.slice(0, 120) + ' cs2 recent results game-tournaments.com', site: 'game-tournaments' });
+    }
+    if (isLoL) {
+      searches.push({ q: query.slice(0, 120) + ' league of legends match h2h gol.gg OR lol.fandom.com', site: 'LoL stats' });
+      searches.push({ q: query.slice(0, 120) + ' lol esports recent results standings 2026', site: 'LoL esports' });
+    }
+    if (isWildRift) {
+      searches.push({ q: query.slice(0, 120) + ' wild rift match results player stats 2026', site: 'Wild Rift' });
+      searches.push({ q: query.slice(0, 120) + ' wild rift h2h team history game-tournaments.com', site: 'game-tournaments' });
+    }
+
+    // Always add a general recent performance search
+    searches.push({ q: query.slice(0, 120) + ' player kill average recent matches 2026', site: 'general' });
+
+    const results = [];
+    const searchPromises = searches.slice(0, 4).map(s =>
+      fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: s.q, num: 5 })
+      })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => ({ data, site: s.site }))
+      .catch(() => null)
+    );
+
+    const searchResults = await Promise.all(searchPromises);
+
+    for (const result of searchResults) {
+      if (!result || !result.data) continue;
+      const site = result.site;
+      if (result.data.organic?.length) {
+        for (const item of result.data.organic.slice(0, 3)) {
+          if (item.title && item.snippet) {
+            results.push('[' + site + '] ' + item.title + ': ' + item.snippet);
+          }
+        }
+      }
+      // Grab answer box if available - often has direct stats
+      if (result.data.answerBox) {
+        const ab = result.data.answerBox;
+        if (ab.answer || ab.snippet) {
+          results.push('[' + site + ' TOP RESULT] ' + (ab.title || '') + ': ' + (ab.answer || ab.snippet || ''));
+        }
+      }
+      // Knowledge graph
+      if (result.data.knowledgeGraph) {
+        const kg = result.data.knowledgeGraph;
+        if (kg.description) {
+          results.push('[' + site + ' INFO] ' + (kg.title || '') + ': ' + kg.description);
+        }
+      }
+    }
+
+    if (!results.length) return null;
+    const unique = [...new Set(results)].slice(0, 12);
+    return 'Esports data from VLR/HLTV/game-tournaments: ' + unique.join(' | ');
+  } catch(e) { return null; }
+}
+
 // ─── News-based roster lookup ─────────────────────────
 async function fetchRosterNews(playerNames, query, newsApiKey) {
   if (!playerNames.length || !newsApiKey) return null;
@@ -469,7 +554,7 @@ export default async function handler(req, res) {
     const playerNames = extractPlayerNames(lastUserMsg);
 
     // Fetch all data sources in parallel
-    const [oddsData, newsData, esportsData, nbaData, mlbData, weatherData, rosterNewsData, webSearchData] = await Promise.all([
+    const [oddsData, newsData, esportsData, nbaData, mlbData, weatherData, rosterNewsData, webSearchData, esportsStatsData] = await Promise.all([
       oddsKey ? fetchOdds(lastUserMsg, oddsKey) : null,
       newsKey ? fetchNews(lastUserMsg, newsKey) : null,
       pandaKey ? fetchEsportsMatches(lastUserMsg, pandaKey) : null,
@@ -477,11 +562,13 @@ export default async function handler(req, res) {
       fetchMLB(lastUserMsg),
       weatherKey ? fetchWeather(lastUserMsg, weatherKey) : null,
       (newsKey && playerNames.length) ? fetchRosterNews(playerNames, lastUserMsg, newsKey) : null,
-      braveKey ? fetchWebSearch(lastUserMsg, braveKey, !!req.body.image) : null
+      braveKey ? fetchWebSearch(lastUserMsg, braveKey, !!req.body.image) : null,
+      braveKey ? fetchEsportsStats(lastUserMsg, braveKey) : null
     ]);
 
     // Build context block — web search and rosters first
     let contextBlock = '';
+    if (esportsStatsData) contextBlock += '\n\n=== ESPORTS STATS FROM VLR/HLTV/GAME-TOURNAMENTS ===\n' + esportsStatsData;
     if (webSearchData) contextBlock += `\n\n=== LIVE WEB SEARCH RESULTS ===\n${webSearchData}`;
     if (rosterNewsData) contextBlock += `\n\n=== LATEST ROSTER AND TRANSFER NEWS ===\n${rosterNewsData}`;
     if (weatherData) contextBlock += `\n\n=== LIVE WEATHER ===\n${weatherData}`;
